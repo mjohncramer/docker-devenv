@@ -1,0 +1,31 @@
+services:
+  devenv:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        SSH_PORT: 2222
+        DEV_USER: devuser
+    image: devenv:latest
+    container_name: devenv
+    ports:
+      - "2222:2222"
+    volumes:
+      - ./workspace:/home/devuser/workspace:rw
+    environment:
+      - SSH_AUTH_SOCK=/ssh-agent
+    restart: unless-stopped
+    networks:
+      - devenv_network
+    healthcheck:
+      test: ["CMD-SHELL", "sshd -T > /dev/null || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    mem_limit: 4g
+    cpus: "2.0"
+
+networks:
+  devenv_network:
+    driver: bridge
