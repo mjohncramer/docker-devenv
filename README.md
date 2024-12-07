@@ -1,6 +1,6 @@
 # devenv
 
-Repositoriy containing configuraand deployment of dockers container for development purposes.
+Repositoriy containing configuration and deployment of dockers container for development purposes.
 
 ## Getting started
 

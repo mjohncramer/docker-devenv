@@ -1,5 +1,5 @@
 variables:
-  GITHUB_REPOSITORY: "devenv"
+  GITHUB_REPOSITORY: "docker-devenv"
 
 include:
   - project: 'shared-configuration/ci_cd'
