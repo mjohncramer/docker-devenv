@@ -1,0 +1,6 @@
+variables:
+  GITHUB_REPOSITORY: "devenv"
+
+include:
+  - project: 'shared-configuration/ci_cd'
+    file: 'github-deploy.yml'
