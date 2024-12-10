@@ -8,10 +8,11 @@ services:
         DEV_USER: devuser
     image: devenv:latest
     container_name: devenv
+    init: true
     ports:
       - "2222:2222"
     volumes:
-      - ./workspace:/home/devuser/workspace:rw
+      - /var/lib/docker/rootless-data/workspace:/home/devuser/workspace:rw
     environment:
       - SSH_AUTH_SOCK=/ssh-agent
     restart: unless-stopped
