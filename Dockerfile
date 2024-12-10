@@ -1,13 +1,14 @@
+#================================================================================
 # Stage 1: Builder Stage
+#===============================================================================
 FROM ubuntu:24.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 ARG SSH_PORT=2222
 ARG DEV_USER=devuser
 
-# Use a tmpfs mount for improved performance during apt operations
-RUN --mount=type=tmpfs,target=/tmp,size=5120m \
-    apt-get update && \
+# Use tmpfs for faster builds and to reduce image layer size
+RUN --mount=type=tmpfs,target=/tmp,size=5120m apt-get update && \
     apt-get install -y --no-install-recommends \
         openssh-server \
         sudo \
@@ -26,10 +27,10 @@ RUN --mount=type=tmpfs,target=/tmp,size=5120m \
         software-properties-common && \
     rm -rf /var/lib/apt/lists/*
 
-# Create the sshd user for privilege separation
+# Add privilege separation user for sshd
 RUN adduser --system --no-create-home --shell /usr/sbin/nologin --group --disabled-password sshd
 
-# Install Ansible and Terraform
+# Install Ansible and Terraform with repositories
 RUN --mount=type=tmpfs,target=/tmp,size=1000m \
     add-apt-repository --yes ppa:ansible/ansible && \
     curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && \
@@ -38,18 +39,18 @@ RUN --mount=type=tmpfs,target=/tmp,size=1000m \
     apt-get install -y ansible terraform && \
     rm -rf /var/lib/apt/lists/*
 
-# Create non-root user for development
+# Create non-root devuser with passwordless sudo
 RUN useradd -ms /bin/bash "$DEV_USER" && \
     usermod -aG sudo "$DEV_USER" && \
     echo "$DEV_USER ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/"$DEV_USER" && \
     chmod 440 /etc/sudoers.d/"$DEV_USER"
 
-# Prepare SSH directories and keys
+# Prepare SSH host keys and directories
 RUN mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd
 RUN rm -f /etc/ssh/ssh_host_ed25519_key && \
     ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N '' -q
 
-# Harden SSH Configuration
+# Harden SSH configuration
 RUN sed -i \
     -e "s/#Port 22/Port $SSH_PORT/" \
     -e "s/#HostKey \/etc\/ssh\/ssh_host_ed25519_key/HostKey \/etc\/ssh\/ssh_host_ed25519_key/" \
@@ -71,10 +72,9 @@ RUN sed -i \
     echo "MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com" >> /etc/ssh/sshd_config
 
 # Secure host key permissions
-RUN chmod 600 /etc/ssh/ssh_host_ed25519_key && \
-    chown root:root /etc/ssh/ssh_host_ed25519_key
+RUN chmod 600 /etc/ssh/ssh_host_ed25519_key && chown root:root /etc/ssh/ssh_host_ed25519_key
 
-# Add devuser's public key for SSH access
+# Add devuser's SSH authorized key
 COPY docker_ed25519.pub /tmp/docker_ed25519.pub
 RUN mkdir -p /home/"$DEV_USER"/.ssh && \
     chmod 700 /home/"$DEV_USER"/.ssh && \
@@ -86,40 +86,27 @@ RUN mkdir -p /home/"$DEV_USER"/.ssh && \
 
 WORKDIR /home/"$DEV_USER"
 
+# Remove unnecessary packages to reduce final size
+RUN apt-get remove -y build-essential pkg-config && \
+    apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
+
+#===============================================================================
 # Stage 2: Final Minimal Runtime Image
-FROM ubuntu:24.04
+#===============================================================================
+FROM scratch
 
-ARG DEV_USER=devuser
+# Copy the entire filesystem from builder to preserve a known-good environment
+COPY --from=builder / /
+
+# Expose the SSH port
 ARG SSH_PORT=2222
-ENV DEBIAN_FRONTEND=noninteractive
-
-# Copy necessary files and directories from builder
-COPY --from=builder /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_ed25519_key
-COPY --from=builder /etc/ssh/ssh_host_ed25519_key.pub /etc/ssh/ssh_host_ed25519_key.pub
-COPY --from=builder /etc/ssh/sshd_config /etc/ssh/sshd_config
-COPY --from=builder /usr/sbin/sshd /usr/sbin/sshd
-COPY --from=builder /usr/bin/ansible /usr/bin/ansible
-COPY --from=builder /usr/bin/terraform /usr/bin/terraform
-COPY --from=builder /usr/bin/python3 /usr/bin/python3
-COPY --from=builder /usr/bin/pip3 /usr/bin/pip3
-COPY --from=builder /usr/lib/ /usr/lib/
-COPY --from=builder /usr/share/ /usr/share/
-COPY --from=builder /bin/ /bin/
-COPY --from=builder /sbin/ /sbin/
-COPY --from=builder /lib/ /lib/
-COPY --from=builder /lib64/ /lib64/
-COPY --from=builder /etc/sudoers.d/$DEV_USER /etc/sudoers.d/$DEV_USER
-COPY --from=builder /etc/passwd /etc/passwd
-COPY --from=builder /etc/group /etc/group
-COPY --from=builder /etc/shadow /etc/shadow
-COPY --from=builder /etc/gshadow /etc/gshadow
-COPY --from=builder /home/$DEV_USER /home/$DEV_USER
-COPY --from=builder /var/run/sshd /var/run/sshd
-
 EXPOSE $SSH_PORT/tcp
 
+# Run as root to start sshd
 USER root
 WORKDIR /home/$DEV_USER
 
-# Run sshd in foreground
+# Final command: run sshd in foreground
 CMD ["/usr/sbin/sshd", "-D", "-e"]
+
