@@ -73,7 +73,7 @@ test_ssh_connection() {
 
 print_success_message() {
     echo "=== Deployment complete! You can now SSH into the container using: ==="
-    echo "ssh -i $SSH_KEY -p $SSH_PORT $DEV_USER@localhost"
+    echo "========= ssh -i $SSH_KEY -p $SSH_PORT $DEV_USER@localhost ========="
 }
 
 # Main Execution

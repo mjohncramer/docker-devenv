@@ -7,12 +7,13 @@ ENV DEBIAN_FRONTEND=noninteractive
 ARG SSH_PORT=2222
 ARG DEV_USER=devuser
 
-# Use tmpfs for faster builds and to reduce image layer size
-RUN --mount=type=tmpfs,target=/tmp,size=5120m apt-get update && \
-    apt-get install -y --no-install-recommends \
+# Use tmpfs in fstab for faster builds and to reduce image layer size
+#RUN --mount=type=tmpfs,target=/tmp,size=5120m apt-get update && \
+RUN apt-get update && apt-get install -y --no-install-recommends \
         openssh-server \
         sudo \
         vim \
+        nano \
         python3 \
         python3-pip \
         curl \
@@ -23,6 +24,11 @@ RUN --mount=type=tmpfs,target=/tmp,size=5120m apt-get update && \
         build-essential \
         pkg-config \
         zip \
+        rustc \
+        cargo \
+        clang \
+        libclang-dev \
+        libssl-dev \
         unzip \
         software-properties-common && \
     rm -rf /var/lib/apt/lists/*
@@ -31,8 +37,8 @@ RUN --mount=type=tmpfs,target=/tmp,size=5120m apt-get update && \
 RUN adduser --system --no-create-home --shell /usr/sbin/nologin --group --disabled-password sshd
 
 # Install Ansible and Terraform with repositories
-RUN --mount=type=tmpfs,target=/tmp,size=1000m \
-    add-apt-repository --yes ppa:ansible/ansible && \
+#RUN --mount=type=tmpfs,target=/tmp,size=1000m \
+RUN add-apt-repository --yes ppa:ansible/ansible && \
     curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list && \
     apt-get update && \
@@ -73,9 +79,11 @@ RUN sed -i \
     echo "ClientAliveCountMax 0" >> /etc/ssh/sshd_config && \
     echo "LogLevel VERBOSE" >> /etc/ssh/sshd_config && \
     echo "MaxAuthTries 3" >> /etc/ssh/sshd_config && \
+    chmod 600 /etc/ssh/ssh_host_ed25519_key && \
+    chown root:root /etc/ssh/ssh_host_ed25519_key
 
 # Secure host key permissions
-RUN chmod 600 /etc/ssh/ssh_host_ed25519_key && chown root:root /etc/ssh/ssh_host_ed25519_key
+#RUN chmod 600 /etc/ssh/ssh_host_ed25519_key && chown root:root /etc/ssh/ssh_host_ed25519_key
 
 # Add devuser's SSH authorized key
 COPY docker_ed25519.pub /tmp/docker_ed25519.pub

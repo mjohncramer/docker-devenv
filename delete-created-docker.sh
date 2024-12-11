@@ -3,6 +3,8 @@
 # Name of the Docker Compose service
 SERVICE_NAME="devenv"
 
+USER=$(whoami)
+
 echo "=== Cleaning up Docker Compose resources ==="
 # Stop and remove Docker Compose services
 docker compose down --volumes --remove-orphans
@@ -49,8 +51,8 @@ echo "=== Cleaning up workspace directory (if exists) ==="
 # Remove workspace directory if specified
 WORKSPACE_DIR="/var/lib/docker/rootless-data/workspace"
 if [ -d "$WORKSPACE_DIR" ]; then
-  echo "Removing workspace directory: $WORKSPACE_DIR..."
-  rm -rf "$WORKSPACE_DIR"
+  echo "Removing contents of workspace directory: $WORKSPACE_DIR..."
+  rm -rf "$WORKSPACE_DIR/*"
 fi
 
 echo "=== Resetting Docker Buildx cache ==="
