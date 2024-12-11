@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         nano \
         python3 \
         python3-pip \
+        python3-venv \
         curl \
         gnupg2 \
         lsb-release \
@@ -23,14 +24,69 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
         iproute2 \
         build-essential \
         pkg-config \
+        cmake \
+        git \
         zip \
         rustc \
         cargo \
         clang \
         libclang-dev \
         libssl-dev \
+        libcurl4-openssl-dev \
+        libxml2-dev \
+        zlib1g-dev \
+        libpq-dev \
+        libbz2-dev \
+        libffi-dev \
+        libreadline-dev \
+        libsqlite3-dev \
+        liblzma-dev \
+        libncurses5-dev \
+        libncursesw5-dev \
+        libgdbm-dev \
+        libnss3-dev \
+        tk-dev \
+        gettext \
         unzip \
-        software-properties-common && \
+        software-properties-common \
+        php \
+        php-cli \
+        php-mbstring \
+        php-xml \
+        php-curl \
+        php-zip \
+        php-mysql \
+        php-pgsql \
+        apache2 \
+        libapache2-mod-php \
+        ruby \
+        ruby-dev \
+        bundler \
+        wget \
+        jq \
+        default-jdk \
+        default-jre \
+        fonts-liberation \
+        gawk \
+        make \
+        doxygen \
+        graphviz \
+        imagemagick \
+        wkhtmltopdf \
+        libmagic-dev \
+        autoconf \
+        automake \
+        libc-dev \
+        libtool \
+        libxslt-dev \
+        libsodium-dev \
+        libuv1-dev \
+        libwebp-dev \
+        libjpeg-dev \
+        libpng-dev \
+        libtiff-dev \
+        libavif-dev \
+        libheif-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Add privilege separation user for sshd
@@ -43,6 +99,13 @@ RUN add-apt-repository --yes ppa:ansible/ansible && \
     echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list && \
     apt-get update && \
     apt-get install -y ansible terraform && \
+    rm -rf /var/lib/apt/lists/*
+
+# Install Node.js, npm, and Yarn
+RUN curl -fsSL https://deb.nodesource.com/setup_18.x | bash - && \
+    apt-get update && \
+    apt-get install -y nodejs && \
+    npm install -g yarn && \
     rm -rf /var/lib/apt/lists/*
 
 # Create non-root devuser with passwordless sudo
