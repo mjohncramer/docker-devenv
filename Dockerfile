@@ -56,20 +56,23 @@ RUN sed -i \
     -e "s/#HostKey \/etc\/ssh\/ssh_host_ed25519_key/HostKey \/etc\/ssh\/ssh_host_ed25519_key/" \
     -e 's/#PermitRootLogin prohibit-password/PermitRootLogin no/' \
     -e 's/#PasswordAuthentication yes/PasswordAuthentication no/' \
+    -e 's/#PubkeyAcceptedKeyTypes.*$/PubkeyAcceptedKeyTypes ssh-ed25519/' \
+    -e 's/#HostKeyAcceptedAlgorithms.*$/HostKeyAcceptedAlgorithms ssh-ed25519/' \
+    -e 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' \
     -e 's/#ChallengeResponseAuthentication yes/ChallengeResponseAuthentication no/' \
     -e 's/#UsePAM yes/UsePAM yes/' \
     -e 's/#X11Forwarding yes/X11Forwarding no/' \
     -e 's/#PrintMotd yes/PrintMotd no/' \
     -e 's/#UseDNS yes/UseDNS no/' \
+    -e 's/#Ciphers.*$/Ciphers aes256-ctr,chacha20-poly1305@openssh.com/' \
+    -e 's/#KexAlgorithms.*$/KexAlgorithms curve25519-sha256@libssh.org/' \
+    -e 's/#MACs.*$/MACs hmac-sha2-512-etm@openssh.com/' \
     /etc/ssh/sshd_config && \
     echo "AllowUsers $DEV_USER" >> /etc/ssh/sshd_config && \
     echo "ClientAliveInterval 300" >> /etc/ssh/sshd_config && \
     echo "ClientAliveCountMax 0" >> /etc/ssh/sshd_config && \
     echo "LogLevel VERBOSE" >> /etc/ssh/sshd_config && \
     echo "MaxAuthTries 3" >> /etc/ssh/sshd_config && \
-    echo "Ciphers aes256-gcm@openssh.com,chacha20-poly1305@openssh.com" >> /etc/ssh/sshd_config && \
-    echo "KexAlgorithms curve25519-sha256" >> /etc/ssh/sshd_config && \
-    echo "MACs hmac-sha2-512-etm@openssh.com,hmac-sha2-256-etm@openssh.com" >> /etc/ssh/sshd_config
 
 # Secure host key permissions
 RUN chmod 600 /etc/ssh/ssh_host_ed25519_key && chown root:root /etc/ssh/ssh_host_ed25519_key
