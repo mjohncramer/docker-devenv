@@ -6,9 +6,8 @@ FROM ubuntu:24.04 AS builder
 ENV DEBIAN_FRONTEND=noninteractive
 ARG SSH_PORT=2222
 ARG DEV_USER=devuser
+ARG PUBKEY_CONTENT
 
-# Use tmpfs in fstab for faster builds and to reduce image layer size
-#RUN --mount=type=tmpfs,target=/tmp,size=5120m apt-get update && \
 RUN apt-get update && apt-get install -y --no-install-recommends \
         openssh-server \
         sudo \
@@ -92,8 +91,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Add privilege separation user for sshd
 RUN adduser --system --no-create-home --shell /usr/sbin/nologin --group --disabled-password sshd
 
-# Install Ansible and Terraform with repositories
-#RUN --mount=type=tmpfs,target=/tmp,size=1000m \
+# Install Ansible and Terraform
 RUN add-apt-repository --yes ppa:ansible/ansible && \
     curl -fsSL https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg && \
     echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" > /etc/apt/sources.list.d/hashicorp.list && \
@@ -145,12 +143,9 @@ RUN sed -i \
     chmod 600 /etc/ssh/ssh_host_ed25519_key && \
     chown root:root /etc/ssh/ssh_host_ed25519_key
 
-# Secure host key permissions
-#RUN chmod 600 /etc/ssh/ssh_host_ed25519_key && chown root:root /etc/ssh/ssh_host_ed25519_key
-
 # Add devuser's SSH authorized key
-COPY docker_ed25519.pub /tmp/docker_ed25519.pub
 RUN mkdir -p /home/"$DEV_USER"/.ssh && \
+    echo "$PUBKEY_CONTENT" > /home/"$DEV_USER"/.ssh/authorized_keys && \
     chmod 700 /home/"$DEV_USER"/.ssh && \
     chown -R "$DEV_USER":"$DEV_USER" /home/"$DEV_USER" && \
     cp /tmp/docker_ed25519.pub /home/"$DEV_USER"/.ssh/authorized_keys && \
@@ -169,18 +164,10 @@ RUN apt-get remove -y build-essential pkg-config && \
 # Stage 2: Final Minimal Runtime Image
 #===============================================================================
 FROM scratch
-
-# Copy the entire filesystem from builder to preserve a known-good environment
 COPY --from=builder / /
 
-# Expose the SSH port
-ARG SSH_PORT=2222
-EXPOSE $SSH_PORT/tcp
+EXPOSE 2222/tcp
 
-# Run as root to start sshd
 USER root
 WORKDIR /home/$DEV_USER
-
-# Final command: run sshd in foreground
 CMD ["/usr/sbin/sshd", "-D", "-e"]
-

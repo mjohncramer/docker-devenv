@@ -6,9 +6,8 @@ services:
       args:
         SSH_PORT: 2222
         DEV_USER: devuser
-    image: devenv:latest
-    container_name: devenv
     init: true
+    # Ubuntu environment will map host port 2222 to container port 2222
     ports:
       - "2222:2222"
     volumes:
