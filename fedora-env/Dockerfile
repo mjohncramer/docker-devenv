@@ -18,9 +18,6 @@ RUN --mount=type=tmpfs,target=/tmp \
         curl gnupg2 ca-certificates iproute \
         gcc gcc-c++ make cmake git zip \
         rust cargo clang clang-devel \
-        openssl-devel libcurl-devel libxml2-devel zlib-devel \
-        postgresql-devel bzip2-devel libffi-devel readline-devel \
-        sqlite-devel xz-devel ncurses-devel gdbm-devel nss-devel tk-devel gettext unzip \
         ruby ruby-devel rubygems redhat-rpm-config wget jq && \
     dnf clean all && rm -rf /var/cache/dnf
 
@@ -62,15 +59,6 @@ RUN mkdir -p /home/$DEV_USER/.ssh && \
     chmod 600 /home/$DEV_USER/.ssh/authorized_keys && \
     chown -R "$DEV_USER":"$DEV_USER" /home/$DEV_USER/.ssh
 
-# Remove build tools not needed at runtime (if desired)
-# For example, remove cmake, gcc, etc. if runtime doesn't need them:
-RUN --mount=type=tmpfs,target=/tmp \
-    dnf -y remove gcc gcc-c++ cmake clang-devel postgresql-devel bzip2-devel libffi-devel \
-                  readline-devel sqlite-devel xz-devel ncurses-devel gdbm-devel nss-devel tk-devel gettext && \
-    dnf clean all && rm -rf /var/cache/dnf
-
-# Builder stage ends here with a lean set of runtime tools (rust, cargo, python, ruby, etc.)
-
 #===============================================================================
 # Stage 2: Runtime Stage (Fedora)
 #===============================================================================
@@ -85,10 +73,44 @@ RUN --mount=type=tmpfs,target=/tmp \
     dnf -y install --setopt=install_weak_deps=False --setopt=tsflags=nodocs \
         openssh-server \
         sudo \
+	git \
         vim nano \
         python3 python3-pip python3-virtualenv \
         curl ca-certificates git rust cargo ruby wget jq && \
     dnf clean all && rm -rf /var/cache/dnf
+
+# Install all runtime and build dependencies needed to build libvirt
+RUN --mount=type=tmpfs,target=/tmp \
+    dnf -y update && \
+    dnf -y install --setopt=install_weak_deps=False --setopt=tsflags=nodocs \
+        # === Build Tools ===
+        gcc gcc-c++ make cmake automake libtool pkgconfig meson ninja-build \
+        # === Development Libraries ===
+        glib2-devel gnutls-devel libcap-ng-devel libnl3-devel libpcap-devel \
+        libxml2-devel libxslt-devel numactl-devel polkit-devel python3-docutils \
+        readline-devel rpcgen systemd-devel xfsprogs-devel yajl-devel \
+        zlib-devel \
+        # === Networking and Security ===
+        dnsmasq iptables dmidecode iproute iscsi-initiator-utils systemd-container \
+        kmod openvswitch \
+        # === Python Development Tools ===
+        python3-black python3-flake8 python3-pytest \
+        # === RPC and Other Libraries ===
+        libtirpc-devel augeas-libs libattr-devel audit-libs-devel \
+        bash-completion libblkid-devel fuse-devel fuse3-devel glusterfs-api-devel \
+        json-c-devel libiscsi-devel libssh-devel libssh2-devel gettext-devel \
+        openwsman-devel pciutils-devel sanlock-devel cyrus-sasl-devel libselinux-devel \
+        wireshark-devel firewalld-filesystem nbdkit-devel libacl-devel libbsd-devel \
+        device-mapper-devel augeas-devel mdevctl \
+        # === Libvirt Specific Dependencies ===
+        libvirt-devel libxml2-python3 libseccomp-devel libvirt-daemon-driver-qemu \
+        libvirt-client libvirt-libs \
+        # === Essential Runtime and Build Tools ===
+        python3 python3-pip python3-virtualenv rust cargo clang clang-devel \
+        openssl-devel unzip ruby ruby-devel rubygems redhat-rpm-config \
+        curl gnupg2 ca-certificates && \
+    dnf clean all && rm -rf /var/cache/dnf
+
 
 # Create user and setup sshd directories, no keys generated here
 RUN mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd && \

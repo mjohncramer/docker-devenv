@@ -14,7 +14,7 @@ services:
       - /var/lib/docker/rootless-data/workspace:/home/devuser/workspace:rw
     environment:
       - SSH_AUTH_SOCK=/ssh-agent
-    restart: unless-stopped
+    restart: no
     networks:
       - devenv_network
     healthcheck:
