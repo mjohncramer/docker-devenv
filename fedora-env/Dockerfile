@@ -28,6 +28,7 @@ RUN mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd && \
     echo "%wheel ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel && \
     chmod 440 /etc/sudoers.d/wheel && \
     passwd -d "$DEV_USER" && \
+    # Generate new SSH host keys for security
     rm -f /etc/ssh/ssh_host_ed25519_key && \
     ssh-keygen -t ed25519 -f /etc/ssh/ssh_host_ed25519_key -N '' -q
 
@@ -66,6 +67,8 @@ FROM fedora:latest
 
 ARG SSH_PORT=2222
 ARG DEV_USER=devuser
+ARG HOST_USER=mcramer
+
 
 # Minimal runtime setup
 RUN --mount=type=tmpfs,target=/tmp \
@@ -86,7 +89,7 @@ RUN --mount=type=tmpfs,target=/tmp \
         # === Build Tools ===
         gcc gcc-c++ make cmake automake libtool pkgconfig meson ninja-build \
         # === Development Libraries ===
-        glib2-devel gnutls-devel libcap-ng-devel libnl3-devel libpcap-devel \
+        glib2-devel libbsd-devel gnutls-devel libcap-ng-devel libnl3-devel libpcap-devel \
         libxml2-devel libxslt-devel numactl-devel polkit-devel python3-docutils \
         readline-devel rpcgen systemd-devel xfsprogs-devel yajl-devel \
         zlib-devel \
@@ -104,7 +107,7 @@ RUN --mount=type=tmpfs,target=/tmp \
         device-mapper-devel augeas-devel mdevctl \
         # === Libvirt Specific Dependencies ===
         libvirt-devel libxml2-python3 libseccomp-devel libvirt-daemon-driver-qemu \
-        libvirt-client libvirt-libs \
+        libvirt-client libvirt-libs slirp4netns \
         # === Essential Runtime and Build Tools ===
         python3 python3-pip python3-virtualenv rust cargo clang clang-devel \
         openssl-devel unzip ruby ruby-devel rubygems redhat-rpm-config \
@@ -118,14 +121,26 @@ RUN mkdir -p /var/run/sshd && chmod 0755 /var/run/sshd && \
     usermod -aG wheel "$DEV_USER" && \
     echo "%wheel ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/wheel && \
     chmod 440 /etc/sudoers.d/wheel && \
-    passwd -d "$DEV_USER"
+    passwd -l "$DEV_USER" && \
+    # Create mcramer user (server/host user) with /usr/sbin/nologin
+    useradd -ms /usr/sbin/nologin "$HOST_USER" && \
+    passwd -l "$HOST_USER" && \
+    usermod -aG wheel "$HOST_USER"
 
 # Copy SSH configuration and keys from builder
 COPY --from=builder /etc/ssh/ssh_host_ed25519_key /etc/ssh/ssh_host_ed25519_key
 COPY --from=builder /etc/ssh/ssh_host_ed25519_key.pub /etc/ssh/ssh_host_ed25519_key.pub
 COPY --from=builder /etc/ssh/sshd_config /etc/ssh/sshd_config
 COPY --from=builder /home/$DEV_USER/.ssh /home/$DEV_USER/.ssh
+
 RUN chown -R "$DEV_USER":"$DEV_USER" /home/$DEV_USER/.ssh
+
+#USER root
+#RUN mkdir -p /home/$HOST_USER && \
+#    chmod 700 /home/$HOST_USER && \
+#    chown -R "$HOST_USER":"$HOST_USER" /home/$HOST_USER
+
+
 
 EXPOSE 2222/tcp
 CMD ["/usr/sbin/sshd", "-D", "-e"]
